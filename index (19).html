@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#04050f">
+<meta name="description" content="Наш собственный Майнфрейм. Навсегда. Навечно.">
+<title>Саша + Соня = &lt;3</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E💖%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --space: #04050f;
+    --space-2: #0a0d24;
+    --cyan: #5ee7ff;
+    --pink: #ff4fa3;
+    --violet: #8a5cff;
+    --amber: #ffd166;
+    --green: #7dffb3;
+    --text: #d9e6ff;
+    --dim: #7f8fb8;
+    --pixel: 'Press Start 2P', 'Courier New', monospace;
+    --mono: 'VT323', 'Courier New', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(ellipse at 15% 8%, rgba(138, 92, 255, .18), transparent 55%),
+      radial-gradient(ellipse at 88% 92%, rgba(255, 79, 163, .14), transparent 55%),
+      linear-gradient(180deg, var(--space) 0%, var(--space-2) 100%);
+    background-attachment: fixed;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 1.45rem;
+    line-height: 1.35;
+    overflow-x: hidden;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  body.locked { overflow: hidden; }
+
+  /* scanlines + vignette */
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 55;
+    background:
+      repeating-linear-gradient(0deg, rgba(255,255,255,.022) 0 1px, transparent 1px 3px),
+      radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.55) 100%);
+  }
+
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  #bg { z-index: 0; }
+  #threads { z-index: 40; }
+
+  main { position: relative; z-index: 10; }
+  section { width: 100%; max-width: 760px; margin: 0 auto; padding: 4.5rem 1.25rem; }
+
+  .progress-top {
+    position: fixed; top: 0; left: 0; height: 3px; width: 0;
+    z-index: 70;
+    background: linear-gradient(90deg, var(--cyan), var(--violet), var(--pink));
+    box-shadow: 0 0 10px var(--pink), 0 0 20px var(--cyan);
+  }
+
+  /* ---------- BOOT ---------- */
+  .boot {
+    position: fixed; inset: 0; z-index: 90;
+    display: flex; align-items: center; justify-content: center;
+    padding: 1.5rem;
+    background: var(--space);
+    transition: opacity 1s ease, visibility 1s ease;
+  }
+  .boot.gone { opacity: 0; visibility: hidden; }
+  .boot-inner { width: 100%; max-width: 520px; }
+  .boot-log { min-height: 11.5rem; font-size: clamp(1.25rem, 4.4vw, 1.6rem); }
+  .boot-log div { margin: .25rem 0; color: var(--cyan); text-shadow: 0 0 8px rgba(94, 231, 255, .6); animation: lineIn .4s ease both; }
+  .boot-log .hot { color: var(--pink); text-shadow: 0 0 10px var(--pink); }
+  .boot-log .good { color: var(--green); }
+  .boot-btns { display: flex; flex-direction: column; gap: .9rem; margin-top: 1.4rem; opacity: 0; visibility: hidden; transition: opacity .8s ease, visibility .8s ease; }
+  .boot-btns.show { opacity: 1; visibility: visible; }
+
+  /* ---------- HERO ---------- */
+  .hero {
+    min-height: 100vh; min-height: 100svh;
+    max-width: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    gap: 1.6rem;
+  }
+  .hero > * { opacity: 0; }
+
+  .glitch {
+    position: relative;
+    font-family: var(--pixel);
+    font-weight: 400;
+    font-size: clamp(1.15rem, 5.4vw, 3rem);
+    line-height: 1.6;
+    color: #fff;
+    letter-spacing: .02em;
+    text-shadow: 0 0 6px var(--cyan), 0 0 18px var(--cyan), 0 0 42px var(--violet);
+  }
+  .glitch::before, .glitch::after {
+    content: attr(data-text);
+    position: absolute; inset: 0;
+    width: 100%;
+    overflow: hidden;
+    opacity: .85;
+    clip-path: inset(0 0 100% 0);
+  }
+  .glitch::before { color: var(--pink); text-shadow: none; transform: translate(-3px, 0); }
+  .glitch::after { color: var(--cyan); text-shadow: none; transform: translate(3px, 0); }
+
+  .subtitle {
+    font-size: clamp(1.4rem, 4.2vw, 2rem);
+    color: var(--pink);
+    text-shadow: 0 0 8px rgba(255, 79, 163, .8), 0 0 24px rgba(255, 79, 163, .4);
+  }
+
+  body.ready .hero .glitch { animation: fadeIn 2.2s ease .2s both, flicker 7s infinite 4s; }
+  body.ready .hero .glitch::before { animation: slice1 4.2s infinite steps(1) 3s; }
+  body.ready .hero .glitch::after { animation: slice2 3.6s infinite steps(1) 3.4s; }
+  body.ready .hero .subtitle { animation: fadeIn 2.2s ease 1.3s both; }
+  body.ready .hero .since { animation: fadeIn 2s ease 2.2s both; }
+  body.ready .hero .scroll-hint { animation: fadeIn 2s ease 3s both, bob 2.4s ease-in-out infinite 5s; }
+
+  .since[hidden] { display: none; }
+  .since-label { color: var(--dim); font-size: 1.25rem; margin-bottom: .7rem; }
+  .since-grid { display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap; }
+  .since-cell {
+    min-width: 4.4rem;
+    padding: .7rem .5rem .5rem;
+    border: 1px solid rgba(94, 231, 255, .5);
+    background: rgba(94, 231, 255, .05);
+    box-shadow: 0 0 12px rgba(94, 231, 255, .25), inset 0 0 12px rgba(94, 231, 255, .08);
+  }
+  .since-cell b { display: block; font-family: var(--pixel); font-weight: 400; font-size: 1.05rem; color: #fff; text-shadow: 0 0 10px var(--cyan); }
+  .since-cell span { color: var(--dim); font-size: 1.05rem; }
+
+  .scroll-hint { margin-top: 1rem; color: var(--dim); font-size: 1.2rem; }
+
+  @keyframes slice1 {
+    0%, 86%, 100% { clip-path: inset(0 0 100% 0); }
+    88% { clip-path: inset(10% 0 62% 0); transform: translate(-5px, 0); }
+    91% { clip-path: inset(58% 0 12% 0); transform: translate(4px, 0); }
+    94% { clip-path: inset(30% 0 40% 0); transform: translate(-3px, 0); }
+  }
+  @keyframes slice2 {
+    0%, 82%, 100% { clip-path: inset(0 0 100% 0); }
+    84% { clip-path: inset(66% 0 8% 0); transform: translate(5px, 0); }
+    88% { clip-path: inset(6% 0 70% 0); transform: translate(-4px, 0); }
+    92% { clip-path: inset(40% 0 30% 0); transform: translate(3px, 0); }
+  }
+  @keyframes flicker { 0%, 93%, 100% { opacity: 1; } 94% { opacity: .65; } 95% { opacity: 1; } 96% { opacity: .75; } }
+  @keyframes fadeIn { from { opacity: 0; filter: blur(6px); } to { opacity: 1; filter: blur(0); } }
+  @keyframes bob { 50% { transform: translateY(6px); } }
+  @keyframes lineIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
+
+  .tear { animation: tear .26s steps(2) 1; }
+  @keyframes tear {
+    0% { transform: none; filter: none; }
+    30% { transform: translateX(-6px) skewX(2deg); filter: hue-rotate(40deg); }
+    60% { transform: translateX(5px); filter: hue-rotate(-30deg); }
+    100% { transform: none; filter: none; }
+  }
+
+  /* ---------- BUTTONS ---------- */
+  .neon-btn {
+    font-family: var(--pixel);
+    font-size: clamp(.6rem, 2.8vw, .8rem);
+    line-height: 1.7;
+    color: var(--cyan);
+    background: rgba(94, 231, 255, .06);
+    border: 2px solid var(--cyan);
+    padding: 1.1rem 1.6rem;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(94, 231, 255, .55), inset 0 0 14px rgba(94, 231, 255, .18);
+    text-shadow: 0 0 8px var(--cyan);
+    transition: transform .3s ease, box-shadow .3s ease, background .3s ease, color .3s ease, opacity .3s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .neon-btn:hover, .neon-btn:focus-visible {
+    background: var(--cyan); color: var(--space); text-shadow: none;
+    box-shadow: 0 0 22px var(--cyan), 0 0 56px rgba(94, 231, 255, .55);
+    transform: translateY(-2px); outline: none;
+  }
+  .neon-btn:active { transform: translateY(1px) scale(.98); }
+  .neon-btn[disabled] { opacity: .45; cursor: default; pointer-events: none; }
+  .neon-btn.pink { color: var(--pink); border-color: var(--pink); background: rgba(255, 79, 163, .06); text-shadow: 0 0 8px var(--pink); box-shadow: 0 0 10px rgba(255, 79, 163, .55), inset 0 0 14px rgba(255, 79, 163, .18); }
+  .neon-btn.pink:hover, .neon-btn.pink:focus-visible { background: var(--pink); color: var(--space); box-shadow: 0 0 22px var(--pink), 0 0 56px rgba(255, 79, 163, .55); }
+
+  .sound-btn {
+    position: fixed; top: calc(env(safe-area-inset-top, 0px) + 12px); right: 12px;
+    z-index: 65;
+    font-family: var(--mono); font-size: 1.15rem;
+    color: var(--dim); background: rgba(4, 5, 15, .6);
+    border: 1px solid rgba(127, 143, 184, .45);
+    padding: .3rem .8rem; cursor: pointer;
+    opacity: 0; visibility: hidden;
+    transition: opacity .8s ease, visibility .8s ease, color .3s ease, border-color .3s ease, box-shadow .3s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body.ready .sound-btn { opacity: 1; visibility: visible; }
+  .sound-btn.on { color: var(--pink); border-color: var(--pink); box-shadow: 0 0 12px rgba(255, 79, 163, .5); }
+
+  .panel-title {
+    font-family: var(--pixel);
+    font-size: clamp(.75rem, 3vw, 1rem);
+    line-height: 1.8;
+    color: var(--violet);
+    text-shadow: 0 0 10px var(--violet);
+    margin-bottom: 1.6rem;
+  }
+
+  /* ---------- CORE / CONSOLE ---------- */
+  .core { text-align: center; }
+  .terminal {
+    margin: 2rem auto 0;
+    max-height: 0; overflow: hidden; opacity: 0;
+    text-align: left;
+    background: rgba(2, 3, 12, .88);
+    border: 1px solid rgba(94, 231, 255, .4);
+    box-shadow: 0 0 18px rgba(94, 231, 255, .22), inset 0 0 22px rgba(94, 231, 255, .06);
+    transition: max-height .9s ease, opacity .6s ease;
+  }
+  .terminal.open { max-height: 560px; opacity: 1; }
+  .term-bar {
+    display: flex; align-items: center; gap: .45rem;
+    padding: .5rem .8rem;
+    border-bottom: 1px solid rgba(94, 231, 255, .25);
+    color: var(--dim); font-size: 1.1rem;
+  }
+  .term-bar i { width: 9px; height: 9px; border-radius: 50%; background: var(--pink); box-shadow: 0 0 6px var(--pink); }
+  .term-bar i:nth-child(2) { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+  .term-bar i:nth-child(3) { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .term-bar span { margin-left: .5rem; }
+  #termBody { padding: .9rem 1.1rem .4rem; }
+  .line { font-size: clamp(1.15rem, 3.8vw, 1.5rem); margin: .3rem 0; word-break: break-word; animation: lineIn .4s ease both; }
+  .line .prompt { color: var(--pink); margin-right: .4rem; }
+  .line .ok { color: var(--green); text-shadow: 0 0 8px var(--green); }
+  .line .final { color: var(--pink); text-shadow: 0 0 10px var(--pink); }
+  .cursor::after { content: "█"; margin-left: .3rem; color: var(--cyan); animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .bar { height: 5px; margin: .6rem 1.1rem 1rem; background: rgba(94, 231, 255, .12); }
+  .bar div { height: 100%; width: 0; background: linear-gradient(90deg, var(--cyan), var(--pink)); box-shadow: 0 0 10px var(--pink); transition: width .9s ease; }
+
+  .heart-wrap {
+    height: 0; overflow: hidden; opacity: 0;
+    display: flex; justify-content: center;
+    transition: height .8s ease, opacity .8s ease, margin .8s ease;
+  }
+  .heart-wrap.show { height: 150px; opacity: 1; margin-top: 2rem; }
+  .heart-btn {
+    background: none; border: none; cursor: pointer;
+    width: 130px; height: 130px;
+    filter: drop-shadow(0 0 8px var(--pink)) drop-shadow(0 0 26px rgba(255, 79, 163, .75));
+    animation: beat 1.3s ease-in-out infinite;
+    transition: filter .3s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .heart-btn:hover { filter: drop-shadow(0 0 14px #fff) drop-shadow(0 0 40px var(--pink)); }
+  .heart-btn:focus-visible { outline: 2px dashed var(--cyan); outline-offset: 8px; }
+  .heart-btn svg { width: 100%; height: 100%; display: block; }
+  .heart-btn rect { fill: var(--pink); }
+  .heart-btn rect.hi { fill: #ffc2de; }
+  @keyframes beat { 0%, 100% { transform: scale(1); } 14% { transform: scale(1.2); } 28% { transform: scale(1); } 42% { transform: scale(1.13); } 70% { transform: scale(1); } }
+  .heart-note { min-height: 1.6rem; margin-top: .8rem; color: var(--dim); font-size: 1.3rem; opacity: 0; transition: opacity .6s ease; }
+  .heart-note.show { opacity: 1; }
+
+  .floater {
+    position: fixed; z-index: 60; pointer-events: none;
+    color: var(--pink); text-shadow: 0 0 10px var(--pink);
+    animation: floatUp 2.4s ease-out forwards;
+  }
+  @keyframes floatUp { from { opacity: 1; transform: translate(0, 0) scale(.6) rotate(0); } to { opacity: 0; transform: translate(var(--dx), -240px) scale(1.4) rotate(var(--rot)); } }
+
+  /* ---------- MEMORY ---------- */
+  .memory {
+    --mx: 50%; --my: 50%;
+    position: relative;
+    padding: 2rem 1.5rem;
+    border: 2px solid var(--pink);
+    background:
+      radial-gradient(260px circle at var(--mx) var(--my), rgba(255, 79, 163, .16), transparent 70%),
+      linear-gradient(160deg, rgba(255, 79, 163, .07), rgba(138, 92, 255, .07));
+    box-shadow: 0 0 14px rgba(255, 79, 163, .55), 0 0 44px rgba(255, 79, 163, .2), inset 0 0 26px rgba(255, 79, 163, .1);
+    transition: box-shadow .5s ease, transform .5s ease;
+    animation: borderPulse 4.5s ease-in-out infinite;
+  }
+  .memory:hover { box-shadow: 0 0 22px var(--pink), 0 0 70px rgba(255, 79, 163, .4), inset 0 0 34px rgba(255, 79, 163, .16); transform: translateY(-3px); }
+  .memory::before, .memory::after { content: ""; position: absolute; width: 14px; height: 14px; background: var(--cyan); box-shadow: 0 0 12px var(--cyan); }
+  .memory::before { top: -8px; left: -8px; }
+  .memory::after { bottom: -8px; right: -8px; }
+  @keyframes borderPulse { 50% { border-color: var(--violet); } }
+  .memory .tag { font-family: var(--pixel); font-size: .6rem; color: var(--cyan); text-shadow: 0 0 8px var(--cyan); margin-bottom: 1.2rem; display: block; line-height: 1.8; }
+  .memory blockquote { font-size: clamp(1.4rem, 4.4vw, 1.8rem); line-height: 1.4; color: #fff; text-shadow: 0 0 6px rgba(255, 255, 255, .25); }
+  .memory .author { margin-top: 1rem; text-align: right; color: var(--pink); opacity: 0; transition: opacity 1.2s ease; }
+  .memory .author.show { opacity: 1; }
+  .vow { margin-top: 2rem; padding-top: 1.4rem; border-top: 1px dashed rgba(94, 231, 255, .45); font-size: clamp(1.3rem, 4vw, 1.65rem); color: var(--cyan); text-shadow: 0 0 10px rgba(94, 231, 255, .6); }
+  .typing::after { content: "▌"; margin-left: 2px; color: var(--pink); animation: blink .8s steps(1) infinite; }
+
+  /* ---------- SHELL ---------- */
+  .hint { color: var(--dim); margin-bottom: 1rem; }
+  .shell { background: rgba(2, 3, 12, .88); border: 1px solid rgba(138, 92, 255, .55); box-shadow: 0 0 18px rgba(138, 92, 255, .25), inset 0 0 22px rgba(138, 92, 255, .07); padding: 1rem 1.1rem; }
+  .shell-out { max-height: 280px; overflow-y: auto; font-size: clamp(1.15rem, 3.8vw, 1.45rem); }
+  .shell-out div { margin: .25rem 0; word-break: break-word; animation: lineIn .35s ease both; white-space: pre-wrap; }
+  .shell-out .me { color: var(--dim); }
+  .shell-out .sys { color: var(--cyan); }
+  .shell-out .luv { color: var(--pink); text-shadow: 0 0 8px rgba(255, 79, 163, .6); }
+  .shell-in { display: flex; align-items: center; gap: .6rem; margin-top: .6rem; }
+  .shell-in span { color: var(--green); white-space: nowrap; font-size: 1.2rem; }
+  .shell-in input { flex: 1; min-width: 0; background: transparent; border: none; border-bottom: 1px dashed rgba(94, 231, 255, .5); color: #fff; font-family: var(--mono); font-size: 1.4rem; padding: .2rem 0; caret-color: var(--pink); }
+  .shell-in input:focus { outline: none; border-bottom-color: var(--pink); }
+  .chips { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1rem; }
+  .chip { font-family: var(--mono); font-size: 1.25rem; color: var(--violet); background: transparent; border: 1px solid rgba(138, 92, 255, .6); padding: .25rem .9rem; cursor: pointer; transition: color .3s ease, background .3s ease, box-shadow .3s ease; -webkit-tap-highlight-color: transparent; }
+  .chip:hover, .chip:focus-visible { color: var(--space); background: var(--violet); box-shadow: 0 0 14px var(--violet); outline: none; }
+
+  /* ---------- FOOTER / MODAL ---------- */
+  footer { position: relative; z-index: 10; text-align: center; padding: 3rem 1.25rem 4.5rem; }
+  .secret-btn { font-family: var(--mono); font-size: 1.25rem; color: var(--dim); background: transparent; border: 1px dashed rgba(127, 143, 184, .45); padding: .7rem 1.2rem; cursor: pointer; transition: color .4s ease, border-color .4s ease, box-shadow .4s ease, text-shadow .4s ease; -webkit-tap-highlight-color: transparent; }
+  .secret-btn:hover, .secret-btn:focus-visible { color: var(--amber); border-color: var(--amber); border-style: solid; text-shadow: 0 0 8px var(--amber); box-shadow: 0 0 16px rgba(255, 209, 102, .4); outline: none; }
+  .signature { margin: 2rem auto 0; max-width: 420px; color: var(--dim); font-size: 1.2rem; }
+
+  .overlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1.25rem; background: rgba(2, 3, 10, .84); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); opacity: 0; visibility: hidden; transition: opacity .5s ease, visibility .5s ease; }
+  .overlay.open { opacity: 1; visibility: visible; }
+  .modal { position: relative; width: 100%; max-width: 560px; max-height: 88vh; overflow-y: auto; padding: 2.2rem 1.6rem 1.8rem; background: var(--space); border: 2px solid var(--cyan); box-shadow: 0 0 20px var(--cyan), 0 0 70px rgba(94, 231, 255, .3), inset 0 0 30px rgba(94, 231, 255, .1); transform: translateY(24px) scale(.96); transition: transform .5s cubic-bezier(.2, .9, .3, 1.2); }
+  .overlay.open .modal { transform: none; }
+  .modal .status { font-family: var(--pixel); font-size: .6rem; line-height: 1.8; color: var(--amber); text-shadow: 0 0 8px var(--amber); margin-bottom: .9rem; animation: flicker 3s infinite; }
+  .reboot { height: 6px; background: rgba(255, 209, 102, .15); margin-bottom: 1.4rem; }
+  .reboot div { height: 100%; width: 0; background: linear-gradient(90deg, var(--amber), var(--pink)); box-shadow: 0 0 10px var(--amber); }
+  .overlay.open.run .reboot div { animation: fill 1.8s ease forwards; }
+  @keyframes fill { to { width: 100%; } }
+  .msg { opacity: 0; transform: translateY(10px); transition: opacity 1.4s ease, transform 1.4s ease; }
+  .msg.done { opacity: 1; transform: none; }
+  .modal p { font-size: clamp(1.35rem, 4.2vw, 1.65rem); line-height: 1.4; color: #fff; }
+  .modal .love { margin-top: 1.2rem; color: var(--pink); text-shadow: 0 0 10px var(--pink); }
+  .close { position: absolute; top: .5rem; right: .7rem; background: none; border: none; color: var(--dim); font-family: var(--mono); font-size: 2rem; cursor: pointer; transition: color .3s ease, text-shadow .3s ease; padding: .2rem .6rem; }
+  .close:hover, .close:focus-visible { color: var(--pink); text-shadow: 0 0 10px var(--pink); outline: none; }
+
+  .reveal { opacity: 0; transform: translateY(24px); transition: opacity 1s ease, transform 1s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+
+  @media (max-width: 480px) {
+    section { padding: 3.5rem 1rem; }
+    .memory { padding: 1.6rem 1.1rem; }
+    .since-cell { min-width: 3.6rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    .reveal { opacity: 1; transform: none; }
+  }
+</style>
+</head>
+<body class="locked">
+
+<canvas id="bg" aria-hidden="true"></canvas>
+<canvas id="threads" aria-hidden="true"></canvas>
+<div class="progress-top" id="progressTop"></div>
+<button class="sound-btn" id="soundBtn" type="button" aria-pressed="false">♪ звук: выкл</button>
+
+<!-- BOOT -->
+<div class="boot" id="boot">
+  <div class="boot-inner">
+    <div class="boot-log" id="bootLog" aria-live="polite"></div>
+    <div class="boot-btns" id="bootBtns">
+      <button class="neon-btn pink" id="enterSound" type="button">[ ВОЙТИ СО ЗВУКОМ ♪ ]</button>
+      <button class="neon-btn" id="enterQuiet" type="button">[ ВОЙТИ БЕЗ ЗВУКА ]</button>
+    </div>
+  </div>
+</div>
+
+<main id="main">
+  <section class="hero" id="hero">
+    <h1 class="glitch" data-text="Саша + Соня = &lt;3">Саша + Соня = &lt;3</h1>
+    <p class="subtitle">Наш собственный Майнфрейм. Навсегда. Навечно.</p>
+    <div class="since" id="since" hidden>
+      <p class="since-label">мы вместе уже</p>
+      <div class="since-grid">
+        <div class="since-cell"><b id="sD">0</b><span>дней</span></div>
+        <div class="since-cell"><b id="sH">0</b><span>часов</span></div>
+        <div class="since-cell"><b id="sM">0</b><span>минут</span></div>
+        <div class="since-cell"><b id="sS">0</b><span>секунд</span></div>
+      </div>
+    </div>
+    <p class="scroll-hint">▼ пролистай вниз ▼</p>
+  </section>
+
+  <section class="core reveal" id="core">
+    <h2 class="panel-title">// ДОСТУП К ЯДРУ</h2>
+    <button class="neon-btn" id="hackBtn" type="button">[ ВЗЛОМАТЬ СИСТЕМУ ]</button>
+    <div class="terminal" id="terminal">
+      <div class="term-bar"><i></i><i></i><i></i><span>mainframe://sasha-sonya</span></div>
+      <div id="termBody" role="log" aria-live="polite"></div>
+      <div class="bar"><div id="progBar"></div></div>
+    </div>
+    <div class="heart-wrap" id="heartWrap">
+      <button class="heart-btn" id="heartBtn" type="button" aria-label="Сердце"><svg id="heartSvg" viewBox="0 0 9 8" shape-rendering="crispEdges" aria-hidden="true"></svg></button>
+    </div>
+    <p class="heart-note" id="heartNote">нажми на сердце</p>
+  </section>
+
+  <section class="reveal" id="memory">
+    <div class="memory" id="memoryCard">
+      <span class="tag">// ФАЙЛ ПАМЯТИ: НЕ УДАЛЯТЬ</span>
+      <blockquote id="quote">«Я обожаю тебя слушать... Я вчера лыбилась как дура, потому что мне было приятно слушать тебя и хотелось растянуть время больше. Ты не представляешь, насколько я счастлива из-за этого всего...»</blockquote>
+      <p class="author" id="author">— Соня ❤️</p>
+      <p class="vow" id="vow">Сжать крепче нельзя, отпустить боюсь. Бессмысленно, но я всё равно держусь... и буду держаться за тебя всегда.</p>
+    </div>
+  </section>
+
+  <section class="reveal" id="cmd">
+    <h2 class="panel-title">// ТВОЙ ТЕРМИНАЛ</h2>
+    <p class="hint">Здесь можно вводить команды. Начни с help.</p>
+    <div class="shell">
+      <div class="shell-out" id="shellOut" role="log" aria-live="polite"></div>
+      <label class="shell-in"><span>sonya@mainframe:~$</span><input id="shellInput" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="send" aria-label="Команда"></label>
+    </div>
+    <div class="chips">
+      <button class="chip" type="button" data-cmd="help">help</button>
+      <button class="chip" type="button" data-cmd="love">love</button>
+      <button class="chip" type="button" data-cmd="hug">hug</button>
+      <button class="chip" type="button" data-cmd="echo">echo</button>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <button class="secret-btn" id="sosBtn" type="button">Если Саня залагал</button>
+  <p class="signature">Саша написал это для Сони. Каждая строчка кода здесь про тебя.</p>
+</footer>
+
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="sosTitle">
+  <div class="modal">
+    <button class="close" id="closeBtn" type="button" aria-label="Закрыть">×</button>
+    <div class="status" id="sosTitle">&gt; ВРЕМЕННЫЙ СБОЙ... ПЕРЕЗАГРУЗКА</div>
+    <div class="reboot"><div></div></div>
+    <div class="msg" id="sosMsg">
+      <p>Зая, если я вдруг запутался в своих старых травмах, залагал, нагрубил или ушёл в туман — помни: это просто временный сбой системы. Мой код перезагружается, но моя любовь к тебе неизменна. Ты моё сокровище. Дай мне немного времени, я скоро вернусь в сеть. Я люблю тебя!</p>
+      <p class="love">❤ Саша</p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ===== НАСТРОЙКИ =====
+     since: дата, с которой вы вместе. Формат 'ГГГГ-ММ-ДДTЧЧ:ММ:СС'.
+     Пример: since: '2025-03-14T20:00:00'
+     Пока null, счётчик скрыт. */
+  var CONFIG = { since: null };
+
+  var $ = function (s) { return document.querySelector(s); };
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+  /* ===== CANVAS: ЗВЁЗДЫ, КОД-ДОЖДЬ, ДВА УЗЛА ===== */
+  var bgc = $('#bg'), g = bgc.getContext('2d');
+  var thc = $('#threads'), tx = thc.getContext('2d');
+  var W = 0, H = 0, dpr = 1;
+  var stars = [], drops = [];
+  var mouse = { x: .5, y: .5 };
+  var scrollP = 0;
+  var GLYPHS = '01<3>_#/\\{}[]=+*';
+
+  function rndGlyph() { return GLYPHS.charAt(Math.floor(Math.random() * GLYPHS.length)); }
+  function newDrop(init) {
+    var len = 6 + Math.floor(Math.random() * 10);
+    var ch = [];
+    for (var i = 0; i < len; i++) ch.push(rndGlyph());
+    return { x: Math.floor(Math.random() * (W / 18)) * 18, y: init ? Math.random() * H : -len * 16, v: 30 + Math.random() * 60, len: len, ch: ch };
+  }
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    [bgc, thc].forEach(function (c) { c.width = W * dpr; c.height = H * dpr; });
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    tx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    var n = Math.round(Math.min(170, W * H / 9000));
+    stars = [];
+    for (var i = 0; i < n; i++) stars.push({ x: Math.random() * W, y: Math.random() * H, r: Math.random() * 1.3 + .4, p: Math.random() * 6.28, s: .5 + Math.random() * 1.5, z: Math.random() });
+    var dn = Math.round(Math.min(26, W / 45));
+    drops = [];
+    for (var j = 0; j < dn; j++) drops.push(newDrop(true));
+    if (reduce) frame(0);
+  }
+
+  function updateScroll() {
+    var max = document.documentElement.scrollHeight - window.innerHeight;
+    scrollP = max > 0 ? clamp(window.scrollY / max, 0, 1) : 0;
+    $('#progressTop').style.width = (scrollP * 100).toFixed(2) + '%';
+    if (reduce) frame(0);
+  }
+
+  var lastT = 0;
+  function frame(t) {
+    var dt = clamp((t - lastT) / 1000, 0, .05); lastT = t;
+    g.clearRect(0, 0, W, H);
+    var sy = window.scrollY;
+
+    // stars
+    for (var i = 0; i < stars.length; i++) {
+      var s = stars[i];
+      var y = (((s.y - sy * .15 * s.z) % H) + H) % H;
+      var a = (.3 + .7 * Math.abs(Math.sin(t / 1000 * s.s + s.p))) * .75;
+      g.fillStyle = 'rgba(200,225,255,' + a.toFixed(3) + ')';
+      g.fillRect(s.x, y, s.r, s.r);
+    }
+
+    // code rain
+    g.font = '16px VT323, monospace';
+    for (var d = 0; d < drops.length; d++) {
+      var dr = drops[d];
+      dr.y += dr.v * dt;
+      for (var k = 0; k < dr.len; k++) {
+        var al = (1 - k / dr.len) * .2;
+        g.fillStyle = k === 0 ? 'rgba(255,255,255,' + (al * 1.6).toFixed(3) + ')' : 'rgba(94,231,255,' + al.toFixed(3) + ')';
+        g.fillText(dr.ch[k], dr.x, dr.y - k * 16);
+      }
+      if (Math.random() < .02) dr.ch[Math.floor(Math.random() * dr.len)] = rndGlyph();
+      if (dr.y - dr.len * 16 > H) drops[d] = newDrop(false);
+    }
+
+    // two nodes: Sasha and Sonya
+    var ease = scrollP * scrollP * (3 - 2 * scrollP);
+    var sep = lerp(Math.min(W * .34, 260), 12, ease);
+    var cy = lerp(H * .9, H * .55, clamp(sy / (H * .9), 0, 1));
+    var mx = mouse.x - .5, my = mouse.y - .5;
+    var ax = W / 2 - sep + Math.sin(t / 1700) * 14 + mx * 30;
+    var ay = cy + Math.cos(t / 1300) * 10 + my * 20;
+    var bx = W / 2 + sep + Math.cos(t / 1900) * 14 + mx * 30;
+    var by = cy + Math.sin(t / 1500) * 10 + my * 20;
+    var cxp = (ax + bx) / 2;
+    var cyp = (ay + by) / 2 - 22 + Math.sin(t / 600) * 26 * (1 - ease * .8);
+
+    g.lineCap = 'round';
+    g.shadowBlur = 16; g.shadowColor = 'rgba(255,79,163,1)';
+    g.strokeStyle = 'rgba(255,79,163,.35)'; g.lineWidth = 3;
+    g.beginPath(); g.moveTo(ax, ay); g.quadraticCurveTo(cxp, cyp, bx, by); g.stroke();
+    g.shadowColor = 'rgba(94,231,255,1)'; g.shadowBlur = 10;
+    g.strokeStyle = 'rgba(94,231,255,.85)'; g.lineWidth = 1.2;
+    g.beginPath(); g.moveTo(ax, ay); g.quadraticCurveTo(cxp, cyp, bx, by); g.stroke();
+
+    // data packets travelling both ways
+    for (var p = 0; p < 3; p++) {
+      var u = ((t / 2600) + p / 3) % 1;
+      for (var dir = 0; dir < 2; dir++) {
+        var uu = dir ? 1 - u : u, iu = 1 - uu;
+        var px = iu * iu * ax + 2 * iu * uu * cxp + uu * uu * bx;
+        var py = iu * iu * ay + 2 * iu * uu * cyp + uu * uu * by;
+        g.fillStyle = dir ? 'rgba(255,200,230,.95)' : 'rgba(210,250,255,.95)';
+        g.shadowColor = dir ? 'rgba(255,79,163,1)' : 'rgba(94,231,255,1)';
+        g.beginPath(); g.arc(px, py, 2.1, 0, 6.283); g.fill();
+      }
+    }
+    g.shadowBlur = 0;
+
+    function node(x, yy, rgb) {
+      var gr = g.createRadialGradient(x, yy, 0, x, yy, 26);
+      gr.addColorStop(0, 'rgba(' + rgb + ',.9)');
+      gr.addColorStop(.25, 'rgba(' + rgb + ',.35)');
+      gr.addColorStop(1, 'rgba(' + rgb + ',0)');
+      g.fillStyle = gr; g.beginPath(); g.arc(x, yy, 26, 0, 6.283); g.fill();
+      g.fillStyle = '#fff'; g.beginPath(); g.arc(x, yy, 3.2, 0, 6.283); g.fill();
+    }
+    node(ax, ay, '94,231,255');
+    node(bx, by, '255,79,163');
+
+    var la = clamp((sep - 30) / 80, 0, 1) * .6;
+    if (la > 0.02) {
+      g.font = '9px "Press Start 2P", monospace';
+      g.textAlign = 'center';
+      g.fillStyle = 'rgba(94,231,255,' + la.toFixed(3) + ')'; g.fillText('САША', ax, ay + 30);
+      g.fillStyle = 'rgba(255,79,163,' + la.toFixed(3) + ')'; g.fillText('СОНЯ', bx, by + 30);
+      g.textAlign = 'start';
+    }
+    if (scrollP > .85) {
+      var ha = clamp((scrollP - .85) / .15, 0, 1);
+      var pulse = 1 + .18 * Math.sin(t / 220);
+      g.font = Math.round(26 * pulse) + 'px "Press Start 2P", monospace';
+      g.textAlign = 'center';
+      g.fillStyle = 'rgba(255,79,163,' + ha.toFixed(3) + ')';
+      g.shadowColor = 'rgba(255,79,163,1)'; g.shadowBlur = 18;
+      g.fillText('♥', cxp, cyp - 26);
+      g.shadowBlur = 0; g.textAlign = 'start';
+    }
+
+    // pointer threads
+    drawThreads(t);
+
+    if (!reduce) requestAnimationFrame(frame);
+  }
+
+  /* ===== НИТИ ЗА КУРСОРОМ / ПАЛЬЦЕМ ===== */
+  var pts = [];
+  var MAX_AGE = 1100;
+  var strands = [
+    { color: '94,231,255', off: 0, amp: 0, w: 1.6 },
+    { color: '255,79,163', off: 2.1, amp: 9, w: 1.2 },
+    { color: '94,231,255', off: 4.2, amp: -9, w: .8 },
+    { color: '255,79,163', off: 1, amp: 18, w: .6 }
+  ];
+  function addPoint(x, y) {
+    mouse.x = x / W; mouse.y = y / H;
+    var last = pts[pts.length - 1];
+    if (last && Math.abs(last.x - x) + Math.abs(last.y - y) < 3) return;
+    pts.push({ x: x, y: y, t: performance.now() });
+    if (pts.length > 90) pts.shift();
+  }
+  function drawThreads(now) {
+    tx.clearRect(0, 0, W, H);
+    now = performance.now();
+    while (pts.length && now - pts[0].t > MAX_AGE) pts.shift();
+    if (pts.length < 2) return;
+    tx.lineCap = 'round';
+    for (var s = 0; s < strands.length; s++) {
+      var st = strands[s];
+      for (var i = 1; i < pts.length; i++) {
+        var a = pts[i - 1], b = pts[i];
+        var life = 1 - (now - b.t) / MAX_AGE;
+        if (life <= 0) continue;
+        var wob = Math.sin(now / 280 + i * .45 + st.off) * st.amp * life;
+        tx.strokeStyle = 'rgba(' + st.color + ',' + (life * .75).toFixed(3) + ')';
+        tx.lineWidth = st.w;
+        tx.shadowColor = 'rgba(' + st.color + ',1)';
+        tx.shadowBlur = 8;
+        tx.beginPath();
+        tx.moveTo(a.x + wob, a.y + wob * .6);
+        tx.lineTo(b.x + wob, b.y + wob * .6);
+        tx.stroke();
+      }
+    }
+    var h = pts[pts.length - 1];
+    var hl = 1 - (now - h.t) / MAX_AGE;
+    if (hl > 0) {
+      tx.shadowBlur = 16; tx.shadowColor = 'rgba(255,255,255,1)';
+      tx.fillStyle = 'rgba(255,255,255,' + (hl * .9).toFixed(3) + ')';
+      tx.beginPath(); tx.arc(h.x, h.y, 2.2, 0, 6.283); tx.fill();
+    }
+    tx.shadowBlur = 0;
+  }
+  window.addEventListener('mousemove', function (e) { addPoint(e.clientX, e.clientY); }, { passive: true });
+  window.addEventListener('touchstart', function (e) { var t = e.touches[0]; addPoint(t.clientX, t.clientY); }, { passive: true });
+  window.addEventListener('touchmove', function (e) { var t = e.touches[0]; addPoint(t.clientX, t.clientY); }, { passive: true });
+  window.addEventListener('resize', resize);
+  window.addEventListener('scroll', updateScroll, { passive: true });
+
+  resize(); updateScroll();
+  if (!reduce) requestAnimationFrame(frame);
+
+  /* ===== ЗВУК (синтез, без файлов) ===== */
+  var ac = null, master = null, soundOn = false, bellTimer = null;
+  var soundBtn = $('#soundBtn');
+  function initAudio() {
+    if (ac) return;
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    ac = new AC();
+    master = ac.createGain(); master.gain.value = 0;
+    var lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 700; lp.Q.value = .7;
+    lp.connect(master); master.connect(ac.destination);
+    var lfo = ac.createOscillator(), lg = ac.createGain();
+    lfo.frequency.value = .07; lg.gain.value = 300;
+    lfo.connect(lg); lg.connect(lp.frequency); lfo.start();
+    [110, 164.81, 220, 261.63, 329.63].forEach(function (f, i) {
+      var o = ac.createOscillator(); o.type = i % 2 ? 'triangle' : 'sine';
+      o.frequency.value = f; o.detune.value = (i - 2) * 4;
+      var gg = ac.createGain(); gg.gain.value = .1 / (1 + i * .3);
+      o.connect(gg); gg.connect(lp); o.start();
+    });
+  }
+  function bell() {
+    if (!ac || !soundOn) return;
+    var notes = [523.25, 587.33, 659.25, 783.99, 880];
+    var o = ac.createOscillator(), gg = ac.createGain(), t = ac.currentTime;
+    o.type = 'sine'; o.frequency.value = notes[Math.floor(Math.random() * notes.length)];
+    gg.gain.setValueAtTime(0, t);
+    gg.gain.linearRampToValueAtTime(.05, t + .02);
+    gg.gain.exponentialRampToValueAtTime(.0001, t + 2.8);
+    o.connect(gg); gg.connect(master); o.start(t); o.stop(t + 3);
+  }
+  function setSound(on) {
+    if (on) initAudio();
+    if (!ac) { soundOn = false; return; }
+    soundOn = on;
+    var t = ac.currentTime;
+    master.gain.cancelScheduledValues(t);
+    master.gain.setValueAtTime(master.gain.value, t);
+    clearInterval(bellTimer);
+    if (on) {
+      ac.resume();
+      master.gain.linearRampToValueAtTime(.4, t + 2.5);
+      bellTimer = setInterval(bell, 3200);
+    } else {
+      master.gain.linearRampToValueAtTime(0, t + .8);
+    }
+    soundBtn.classList.toggle('on', on);
+    soundBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    soundBtn.textContent = on ? '♪ звук: вкл' : '♪ звук: выкл';
+  }
+  soundBtn.addEventListener('click', function () { setSound(!soundOn); });
+
+  /* ===== BOOT ===== */
+  var bootLines = [
+    { t: '> MAINFRAME ONLINE', c: '' },
+    { t: '> поиск сигнала...', c: '' },
+    { t: '> найден пользователь: СОНЯ', c: 'hot' },
+    { t: '> уровень нежности: превышен', c: '' },
+    { t: '> все системы в норме', c: 'good' }
+  ];
+  var bootLog = $('#bootLog'), bootBtns = $('#bootBtns');
+  bootLines.forEach(function (l, i) {
+    setTimeout(function () {
+      var d = document.createElement('div');
+      d.textContent = l.t; if (l.c) d.className = l.c;
+      bootLog.appendChild(d);
+      if (i === bootLines.length - 1) setTimeout(function () { bootBtns.classList.add('show'); }, 500);
+    }, 400 + i * 600);
+  });
+  function enter(withSound) {
+    $('#boot').classList.add('gone');
+    document.body.classList.remove('locked');
+    document.body.classList.add('ready');
+    if (withSound) setSound(true);
+    setTimeout(function () { $('#boot').style.display = 'none'; }, 1100);
+  }
+  $('#enterSound').addEventListener('click', function () { enter(true); });
+  $('#enterQuiet').addEventListener('click', function () { enter(false); });
+
+  /* ===== СЧЁТЧИК «МЫ ВМЕСТЕ» ===== */
+  if (CONFIG.since) {
+    var since = new Date(CONFIG.since).getTime();
+    if (!isNaN(since)) {
+      $('#since').hidden = false;
+      var tick = function () {
+        var diff = Math.max(0, Date.now() - since) / 1000;
+        $('#sD').textContent = Math.floor(diff / 86400);
+        $('#sH').textContent = Math.floor(diff % 86400 / 3600);
+        $('#sM').textContent = Math.floor(diff % 3600 / 60);
+        $('#sS').textContent = Math.floor(diff % 60);
+      };
+      tick(); setInterval(tick, 1000);
+    }
+  }
+
+  /* ===== СЕРДЦЕ (пиксельное) ===== */
+  var heartMap = ['.XX...XX.', 'XHXX.XXXX', 'XXXXXXXXX', 'XXXXXXXXX', '.XXXXXXX.', '..XXXXX..', '...XXX...', '....X....'];
+  var NS = 'http://www.w3.org/2000/svg';
+  var hs = $('#heartSvg');
+  heartMap.forEach(function (row, y) {
+    for (var x = 0; x < row.length; x++) {
+      var c = row.charAt(x);
+      if (c === '.') continue;
+      var r = document.createElementNS(NS, 'rect');
+      r.setAttribute('x', x); r.setAttribute('y', y);
+      r.setAttribute('width', 1.02); r.setAttribute('height', 1.02);
+      if (c === 'H') r.setAttribute('class', 'hi');
+      hs.appendChild(r);
+    }
+  });
+
+  function burst(cx, cy, n) {
+    var set = ['❤', '♥', '💖', '✦'];
+    for (var i = 0; i < n; i++) {
+      var f = document.createElement('span');
+      f.className = 'floater';
+      f.textContent = set[i % set.length];
+      f.style.left = (cx + Math.random() * 60 - 30) + 'px';
+      f.style.top = cy + 'px';
+      f.style.fontSize = (14 + Math.random() * 24) + 'px';
+      f.style.setProperty('--dx', (Math.random() * 180 - 90) + 'px');
+      f.style.setProperty('--rot', (Math.random() * 50 - 25) + 'deg');
+      f.style.animationDelay = (Math.random() * .3) + 's';
+      document.body.appendChild(f);
+      setTimeout((function (el) { return function () { el.remove(); }; })(f), 3000);
+    }
+  }
+
+  /* ===== HACK CONSOLE ===== */
+  var hackBtn = $('#hackBtn'), term = $('#terminal'), termBody = $('#termBody');
+  var heartWrap = $('#heartWrap'), heartBtn = $('#heartBtn'), heartNote = $('#heartNote'), progBar = $('#progBar');
+  var lines = [
+    { text: 'Анализ картошки с мясом...', status: '[УСПЕШНО]', cls: 'ok' },
+    { text: 'Анализ пюре с курицей...', status: '[УСПЕШНО]', cls: 'ok' },
+    { text: 'Проверка объёма памяти ленивого гения...', status: '[100%]', cls: 'ok' },
+    { text: 'Сканирование секретов в отношениях...', status: '[0 секретов найдено]', cls: 'ok' },
+    { text: 'Статус системы...', status: '[МЫ ОДНО ЦЕЛОЕ]', cls: 'final' }
+  ];
+
+  function addLine(item, done) {
+    var old = termBody.querySelector('.cursor');
+    if (old) old.classList.remove('cursor');
+    var div = document.createElement('div');
+    div.className = 'line cursor';
+    var p = document.createElement('span'); p.className = 'prompt'; p.textContent = '>';
+    var txt = document.createElement('span');
+    var st = document.createElement('span'); st.className = item.cls;
+    div.appendChild(p); div.appendChild(txt); div.appendChild(st);
+    termBody.appendChild(div);
+    var i = 0, full = item.text + ' ';
+    var iv = setInterval(function () {
+      i++; txt.textContent = full.slice(0, i);
+      if (i >= full.length) { clearInterval(iv); st.textContent = item.status; if (done) done(); }
+    }, 18);
+  }
+
+  hackBtn.addEventListener('click', function () {
+    hackBtn.disabled = true;
+    hackBtn.textContent = '[ ВЗЛОМ... ]';
+    termBody.innerHTML = '';
+    progBar.style.width = '0';
+    term.classList.add('open');
+    heartWrap.classList.remove('show');
+    heartNote.classList.remove('show');
+    lines.forEach(function (item, i) {
+      setTimeout(function () {
+        addLine(item);
+        progBar.style.width = ((i + 1) / lines.length * 100) + '%';
+        if (i === lines.length - 1) {
+          setTimeout(function () {
+            heartWrap.classList.add('show');
+            heartNote.classList.add('show');
+            hackBtn.textContent = '[ ВЗЛОМАТЬ ЕЩЁ РАЗ ]';
+            hackBtn.disabled = false;
+            heartWrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 1100);
+        }
+      }, (i + 1) * 1000);
+    });
+  });
+
+  var notes = ['я тебя люблю', 'ты моя вселенная', 'держусь за тебя', 'мы одно целое', 'навсегда. навечно.'];
+  var noteIdx = 0;
+  heartBtn.addEventListener('click', function () {
+    var r = heartBtn.getBoundingClientRect();
+    burst(r.left + r.width / 2, r.top + r.height / 2, 14);
+    heartNote.textContent = notes[noteIdx++ % notes.length];
+    document.getElementById('main').classList.add('tear');
+    setTimeout(function () { document.getElementById('main').classList.remove('tear'); }, 280);
+  });
+
+  /* ===== ПАМЯТЬ: печатающийся текст + свет за курсором ===== */
+  var memCard = $('#memoryCard');
+  memCard.addEventListener('pointermove', function (e) {
+    var r = memCard.getBoundingClientRect();
+    memCard.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+    memCard.style.setProperty('--my', (e.clientY - r.top) + 'px');
+  });
+  function typeInto(el, text, speed, cb) {
+    el.style.minHeight = el.offsetHeight + 'px';
+    el.textContent = ''; el.classList.add('typing');
+    var i = 0;
+    var iv = setInterval(function () {
+      i++; el.textContent = text.slice(0, i);
+      if (i >= text.length) { clearInterval(iv); el.classList.remove('typing'); if (cb) cb(); }
+    }, speed);
+  }
+  var memDone = false;
+  function playMemory() {
+    if (memDone) return; memDone = true;
+    var q = $('#quote'), v = $('#vow'), a = $('#author');
+    var qt = q.textContent, vt = v.textContent;
+    if (reduce) { a.classList.add('show'); return; }
+    v.style.visibility = 'hidden'; v.style.minHeight = v.offsetHeight + 'px';
+    typeInto(q, qt, 18, function () {
+      a.classList.add('show');
+      setTimeout(function () {
+        v.style.visibility = 'visible';
+        typeInto(v, vt, 20);
+      }, 700);
+    });
+  }
+
+  /* ===== ТЕРМИНАЛ-СЮРПРИЗ ===== */
+  var out = $('#shellOut'), input = $('#shellInput');
+  function say(text, cls) {
+    var d = document.createElement('div');
+    if (cls) d.className = cls;
+    d.textContent = text;
+    out.appendChild(d);
+    out.scrollTop = out.scrollHeight;
+  }
+  var replies = {
+    help: ['Доступные команды: love, hug, sasha, sonya, echo, mainframe, sudo, clear', 'sys'],
+    love: ['Люблю тебя. Это не баг, это фича. ❤', 'luv'],
+    hug: ['*обнимаю крепко-крепко, и отпускать не собираюсь*', 'luv'],
+    sasha: ['Саша: ленивый гений, кодер, твой. Статус: онлайн.', 'sys'],
+    sonya: ['Соня: сокровище системы. Уровень доступа ко всему: максимальный.', 'luv'],
+    echo: ['echo... echo... я слышу тебя в каждом сигнале.', 'sys'],
+    mainframe: ['Наш Майнфрейм. Аптайм: навсегда. Навечно.', 'sys'],
+    sudo: ['sudo love --forever: доступ разрешён ✔', 'luv']
+  };
+  function run(raw) {
+    var cmd = raw.trim().toLowerCase();
+    if (!cmd) return;
+    say('$ ' + raw.trim(), 'me');
+    if (cmd === 'clear') { out.innerHTML = ''; return; }
+    var key = cmd.replace(/^sudo\s+.*/, 'sudo');
+    if (replies[key]) {
+      say(replies[key][0], replies[key][1]);
+      if (key === 'hug' || key === 'love') {
+        var r = input.getBoundingClientRect();
+        burst(r.left + 40, r.top, key === 'hug' ? 12 : 8);
+      }
+      return;
+    }
+    if (cmd.indexOf('люблю') !== -1 || cmd.indexOf('love you') !== -1) {
+      say('И я тебя люблю. Больше, чем ты думаешь. ❤', 'luv');
+      var rr = input.getBoundingClientRect(); burst(rr.left + 40, rr.top, 10);
+      return;
+    }
+    say('команда не найдена: ' + raw.trim() + '. Попробуй help', 'sys');
+  }
+  say('Mainframe v2.0. Соня, добро пожаловать домой.', 'luv');
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { run(input.value); input.value = ''; }
+  });
+  document.querySelectorAll('.chip').forEach(function (c) {
+    c.addEventListener('click', function () { run(c.getAttribute('data-cmd')); });
+  });
+
+  /* ===== ПОЯВЛЕНИЕ СЕКЦИЙ ===== */
+  var revealEls = document.querySelectorAll('.reveal');
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (!en.isIntersecting) return;
+        en.target.classList.add('in');
+        if (en.target.id === 'memory') setTimeout(playMemory, 500);
+        io.unobserve(en.target);
+      });
+    }, { threshold: 0.2 });
+    revealEls.forEach(function (el) { io.observe(el); });
+  } else {
+    revealEls.forEach(function (el) { el.classList.add('in'); });
+    playMemory();
+  }
+
+  /* ===== РЕДКИЙ ГЛИТЧ ВСЕЙ СТРАНИЦЫ ===== */
+  if (!reduce) {
+    (function schedule() {
+      setTimeout(function () {
+        var m = document.getElementById('main');
+        m.classList.add('tear');
+        setTimeout(function () { m.classList.remove('tear'); }, 280);
+        schedule();
+      }, 9000 + Math.random() * 10000);
+    })();
+  }
+
+  /* ===== МОДАЛКА «ЕСЛИ САНЯ ЗАЛАГАЛ» ===== */
+  var overlay = $('#overlay'), sosBtn = $('#sosBtn'), closeBtn = $('#closeBtn'), sosMsg = $('#sosMsg');
+  var sosTimer = null;
+  function openModal() {
+    sosMsg.classList.remove('done');
+    overlay.classList.remove('run');
+    overlay.classList.add('open');
+    void overlay.offsetWidth;
+    overlay.classList.add('run');
+    document.body.style.overflow = 'hidden';
+    clearTimeout(sosTimer);
+    sosTimer = setTimeout(function () { sosMsg.classList.add('done'); }, reduce ? 0 : 1900);
+    setTimeout(function () { closeBtn.focus(); }, 300);
+  }
+  function closeModal() {
+    overlay.classList.remove('open', 'run');
+    document.body.style.overflow = '';
+    clearTimeout(sosTimer);
+    sosBtn.focus();
+  }
+  sosBtn.addEventListener('click', openModal);
+  closeBtn.addEventListener('click', closeModal);
+  overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && overlay.classList.contains('open')) closeModal();
+  });
+})();
+</script>
+</body>
+</html>
